@@ -124,7 +124,7 @@ func (as *adapterService) Publish(ctx context.Context, m *Message) error {
 		payload = jo
 	}
 
-	// Publish on SupeMQ Message broker
+	// Publish on SuperMQ Message broker
 	msg := messaging.Message{
 		Publisher: clientID,
 		Protocol:  protocol,

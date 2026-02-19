@@ -12,16 +12,19 @@ type removeClientEvent struct {
 	id string
 }
 
-type connectClientEvent struct {
-	chanID    string
-	clientIDs []string
+type connectionEvent struct {
+	channelIDs []string
+	clientIDs  []string
+	domainID   string
 }
 
 type createChannelEvent struct {
-	id             string
+	channelID      string
+	domainID       string
 	opcuaServerURI string
 }
 
 type removeChannelEvent struct {
-	id string
+	channelID string
+	domainID  string
 }

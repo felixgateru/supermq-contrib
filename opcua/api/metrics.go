@@ -30,76 +30,76 @@ func MetricsMiddleware(svc opcua.Service, counter metrics.Counter, latency metri
 	}
 }
 
-func (mm *metricsMiddleware) CreateClient(ctx context.Context, mgxDevID, opcuaNodeID string) error {
+func (mm *metricsMiddleware) CreateClient(ctx context.Context, clientID, opcuaNodeID string) error {
 	defer func(begin time.Time) {
 		mm.counter.With("method", "create_client").Add(1)
 		mm.latency.With("method", "create_client").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return mm.svc.CreateClient(ctx, mgxDevID, opcuaNodeID)
+	return mm.svc.CreateClient(ctx, clientID, opcuaNodeID)
 }
 
-func (mm *metricsMiddleware) UpdateClient(ctx context.Context, mgxDevID, opcuaNodeID string) error {
+func (mm *metricsMiddleware) UpdateClient(ctx context.Context, clientID, opcuaNodeID string) error {
 	defer func(begin time.Time) {
 		mm.counter.With("method", "update_client").Add(1)
 		mm.latency.With("method", "update_client").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return mm.svc.UpdateClient(ctx, mgxDevID, opcuaNodeID)
+	return mm.svc.UpdateClient(ctx, clientID, opcuaNodeID)
 }
 
-func (mm *metricsMiddleware) RemoveClient(ctx context.Context, mgxDevID string) error {
+func (mm *metricsMiddleware) RemoveClient(ctx context.Context, clientID string) error {
 	defer func(begin time.Time) {
 		mm.counter.With("method", "remove_client").Add(1)
 		mm.latency.With("method", "remove_client").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return mm.svc.RemoveClient(ctx, mgxDevID)
+	return mm.svc.RemoveClient(ctx, clientID)
 }
 
-func (mm *metricsMiddleware) CreateChannel(ctx context.Context, mgxChanID, opcuaServerURI string) error {
+func (mm *metricsMiddleware) CreateChannel(ctx context.Context, channelID, domainID, opcuaServerURI string) error {
 	defer func(begin time.Time) {
 		mm.counter.With("method", "create_channel").Add(1)
 		mm.latency.With("method", "create_channel").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return mm.svc.CreateChannel(ctx, mgxChanID, opcuaServerURI)
+	return mm.svc.CreateChannel(ctx, channelID, domainID, opcuaServerURI)
 }
 
-func (mm *metricsMiddleware) UpdateChannel(ctx context.Context, mgxChanID, opcuaServerURI string) error {
+func (mm *metricsMiddleware) UpdateChannel(ctx context.Context, channelID, domainID, opcuaServerURI string) error {
 	defer func(begin time.Time) {
 		mm.counter.With("method", "update_channel").Add(1)
 		mm.latency.With("method", "update_channel").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return mm.svc.UpdateChannel(ctx, mgxChanID, opcuaServerURI)
+	return mm.svc.UpdateChannel(ctx, channelID, domainID, opcuaServerURI)
 }
 
-func (mm *metricsMiddleware) RemoveChannel(ctx context.Context, mgxChanID string) error {
+func (mm *metricsMiddleware) RemoveChannel(ctx context.Context, channelID, domainID string) error {
 	defer func(begin time.Time) {
 		mm.counter.With("method", "remove_channel").Add(1)
 		mm.latency.With("method", "remove_channel").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return mm.svc.RemoveChannel(ctx, mgxChanID)
+	return mm.svc.RemoveChannel(ctx, channelID, domainID)
 }
 
-func (mm *metricsMiddleware) ConnectClient(ctx context.Context, mgxChanID string, mgxClientIDs []string) error {
+func (mm *metricsMiddleware) Connect(ctx context.Context, domainID string, channelIDs, clientIDs []string) error {
 	defer func(begin time.Time) {
-		mm.counter.With("method", "connect_client").Add(1)
-		mm.latency.With("method", "connect_client").Observe(time.Since(begin).Seconds())
+		mm.counter.With("method", "connect").Add(1)
+		mm.latency.With("method", "connect").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return mm.svc.ConnectClient(ctx, mgxChanID, mgxClientIDs)
+	return mm.svc.Connect(ctx, domainID, channelIDs, clientIDs)
 }
 
-func (mm *metricsMiddleware) DisconnectClient(ctx context.Context, mgxChanID string, mgxClientIDs []string) error {
+func (mm *metricsMiddleware) Disconnect(ctx context.Context, channelIDs, clientIDs []string) error {
 	defer func(begin time.Time) {
-		mm.counter.With("method", "disconnect_client").Add(1)
-		mm.latency.With("method", "disconnect_client").Observe(time.Since(begin).Seconds())
+		mm.counter.With("method", "disconnect").Add(1)
+		mm.latency.With("method", "disconnect").Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return mm.svc.DisconnectClient(ctx, mgxChanID, mgxClientIDs)
+	return mm.svc.Disconnect(ctx, channelIDs, clientIDs)
 }
 
 func (mm *metricsMiddleware) Browse(ctx context.Context, serverURI, namespace, identifier, identifierType string) ([]opcua.BrowsedNode, error) {

@@ -25,8 +25,8 @@ const (
 	channelCreate     = channelPrefix + "create"
 	channelUpdate     = channelPrefix + "update"
 	channelRemove     = channelPrefix + "remove"
-	channelConnect    = channelPrefix + "assign"
-	channelDisconnect = channelPrefix + "unassign"
+	channelConnect    = channelPrefix + "connect"
+	channelDisconnect = channelPrefix + "disconnect"
 )
 
 var (
@@ -58,45 +58,45 @@ func (es *eventHandler) Handle(ctx context.Context, event events.Event) error {
 
 	switch msg["operation"] {
 	case clientCreate:
-		cte, e := decodeCreateClient(msg)
+		cte, e := decodeCreateClientEvent(msg)
 		if e != nil {
 			err = e
 			break
 		}
 		err = es.svc.CreateClient(ctx, cte.id, cte.opcuaNodeID)
 	case clientUpdate:
-		ute, e := decodeCreateClient(msg)
+		ute, e := decodeCreateClientEvent(msg)
 		if e != nil {
 			err = e
 			break
 		}
 		err = es.svc.CreateClient(ctx, ute.id, ute.opcuaNodeID)
 	case clientRemove:
-		rte := decodeRemoveClient(msg)
+		rte := decodeRemoveClientEvent(msg)
 		err = es.svc.RemoveClient(ctx, rte.id)
 	case channelCreate:
-		cce, e := decodeCreateChannel(msg)
+		cce, e := decodeCreateChannelEvent(msg)
 		if e != nil {
 			err = e
 			break
 		}
-		err = es.svc.CreateChannel(ctx, cce.id, cce.opcuaServerURI)
+		err = es.svc.CreateChannel(ctx, cce.channelID, cce.domainID, cce.opcuaServerURI)
 	case channelUpdate:
-		uce, e := decodeCreateChannel(msg)
+		uce, e := decodeCreateChannelEvent(msg)
 		if e != nil {
 			err = e
 			break
 		}
-		err = es.svc.CreateChannel(ctx, uce.id, uce.opcuaServerURI)
+		err = es.svc.CreateChannel(ctx, uce.channelID, uce.domainID, uce.opcuaServerURI)
 	case channelRemove:
-		rce := decodeRemoveChannel(msg)
-		err = es.svc.RemoveChannel(ctx, rce.id)
+		rce := decodeRemoveChannelEvent(msg)
+		err = es.svc.RemoveChannel(ctx, rce.channelID, rce.domainID)
 	case channelConnect:
-		rce := decodeConnectClient(msg)
-		err = es.svc.ConnectClient(ctx, rce.chanID, rce.clientIDs)
+		rce := decodeConnectionEvent(msg)
+		err = es.svc.Connect(ctx, rce.domainID, rce.channelIDs, rce.clientIDs)
 	case channelDisconnect:
-		rce := decodeDisconnectClient(msg)
-		err = es.svc.DisconnectClient(ctx, rce.chanID, rce.clientIDs)
+		rce := decodeConnectionEvent(msg)
+		err = es.svc.Disconnect(ctx, rce.channelIDs, rce.clientIDs)
 	}
 	if err != nil && err != errMetadataType {
 		return err
@@ -105,7 +105,7 @@ func (es *eventHandler) Handle(ctx context.Context, event events.Event) error {
 	return nil
 }
 
-func decodeCreateClient(event map[string]interface{}) (createClientEvent, error) {
+func decodeCreateClientEvent(event map[string]interface{}) (createClientEvent, error) {
 	metadata := events.Read(event, "metadata", map[string]interface{}{})
 
 	cte := createClientEvent{
@@ -131,17 +131,18 @@ func decodeCreateClient(event map[string]interface{}) (createClientEvent, error)
 	return cte, nil
 }
 
-func decodeRemoveClient(event map[string]interface{}) removeClientEvent {
+func decodeRemoveClientEvent(event map[string]interface{}) removeClientEvent {
 	return removeClientEvent{
 		id: events.Read(event, "id", ""),
 	}
 }
 
-func decodeCreateChannel(event map[string]interface{}) (createChannelEvent, error) {
+func decodeCreateChannelEvent(event map[string]interface{}) (createChannelEvent, error) {
 	metadata := events.Read(event, "metadata", map[string]interface{}{})
 
 	cce := createChannelEvent{
-		id: events.Read(event, "id", ""),
+		channelID: events.Read(event, "id", ""),
+		domainID:  events.Read(event, "domain", ""),
 	}
 
 	metadataOpcua, ok := metadata[keyType]
@@ -163,22 +164,17 @@ func decodeCreateChannel(event map[string]interface{}) (createChannelEvent, erro
 	return cce, nil
 }
 
-func decodeRemoveChannel(event map[string]interface{}) removeChannelEvent {
+func decodeRemoveChannelEvent(event map[string]interface{}) removeChannelEvent {
 	return removeChannelEvent{
-		id: events.Read(event, "id", ""),
+		channelID: events.Read(event, "id", ""),
+		domainID:  events.Read(event, "domain", ""),
 	}
 }
 
-func decodeConnectClient(event map[string]interface{}) connectClientEvent {
-	return connectClientEvent{
-		chanID:    events.Read(event, "group_id", ""),
-		clientIDs: events.ReadStringSlice(event, "member_ids"),
-	}
-}
-
-func decodeDisconnectClient(event map[string]interface{}) connectClientEvent {
-	return connectClientEvent{
-		chanID:    events.Read(event, "group_id", ""),
-		clientIDs: events.ReadStringSlice(event, "member_ids"),
+func decodeConnectionEvent(event map[string]interface{}) connectionEvent {
+	return connectionEvent{
+		channelIDs: events.ReadStringSlice(event, "channel_ids"),
+		clientIDs:  events.ReadStringSlice(event, "client_ids"),
+		domainID:   events.Read(event, "domain", ""),
 	}
 }

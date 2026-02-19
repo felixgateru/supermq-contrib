@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/absmach/supermq-contrib/opcua"
@@ -17,24 +18,22 @@ import (
 	uagopcua "github.com/gopcua/opcua/ua"
 )
 
-const (
-	protocol = "opcua"
-	token    = ""
-)
+const protocol = "opcua"
 
 var (
 	errNotFoundServerURI = errors.New("route map not found for Server URI")
 	errNotFoundNodeID    = errors.New("route map not found for Node ID")
 	errNotFoundConn      = errors.New("connection not found")
 
-	errFailedConn          = errors.New("failed to connect")
-	errFailedParseInterval = errors.New("failed to parse subscription interval")
-	errFailedSub           = errors.New("failed to subscribe")
-	errFailedFindEndpoint  = errors.New("failed to find suitable endpoint")
-	errFailedFetchEndpoint = errors.New("failed to fetch OPC-UA server endpoints")
-	errFailedParseNodeID   = errors.New("failed to parse NodeID")
-	errFailedCreateReq     = errors.New("failed to create request")
-	errResponseStatus      = errors.New("response status not OK")
+	errFailedConn            = errors.New("failed to connect")
+	errFailedParseInterval   = errors.New("failed to parse subscription interval")
+	errFailedSub             = errors.New("failed to subscribe")
+	errFailedFindEndpoint    = errors.New("failed to find suitable endpoint")
+	errFailedFetchEndpoint   = errors.New("failed to fetch OPC-UA server endpoints")
+	errFailedParseNodeID     = errors.New("failed to parse NodeID")
+	errFailedCreateReq       = errors.New("failed to create request")
+	errResponseStatus        = errors.New("response status not OK")
+	errMalformedChannelValue = errors.New("malformed channel value format")
 )
 
 var _ opcua.Subscriber = (*client)(nil)
@@ -192,7 +191,7 @@ func (c client) runHandler(ctx context.Context, sub *opcuagopcua.Subscription, u
 						msg.Data = 0
 					}
 
-					if err := c.publish(ctx, token, msg); err != nil {
+					if err := c.publish(ctx, msg); err != nil {
 						switch err {
 						case errNotFoundServerURI, errNotFoundNodeID, errNotFoundConn:
 							return err
@@ -210,11 +209,16 @@ func (c client) runHandler(ctx context.Context, sub *opcuagopcua.Subscription, u
 }
 
 // Publish forwards messages from the OPC-UA Server to SupeMQ Message broker.
-func (c client) publish(ctx context.Context, token string, m message) error {
+func (c client) publish(ctx context.Context, m message) error {
 	// Get route-map of the OPC-UA ServerURI
-	chanID, err := c.channelsRM.Get(ctx, m.ServerURI)
+	chanVal, err := c.channelsRM.Get(ctx, m.ServerURI)
 	if err != nil {
 		return errNotFoundServerURI
+	}
+
+	channelID, domainID, err := decodeChannelValue(chanVal)
+	if err != nil {
+		return err
 	}
 
 	// Get route-map of the OPC-UA NodeID
@@ -224,9 +228,9 @@ func (c client) publish(ctx context.Context, token string, m message) error {
 	}
 
 	// Check connection between ServerURI and NodeID
-	cKey := fmt.Sprintf("%s:%s", chanID, clientID)
+	cKey := fmt.Sprintf("%s:%s", channelID, clientID)
 	if _, err := c.connectRM.Get(ctx, cKey); err != nil {
-		return fmt.Errorf("%s between channel %s and client %s", errNotFoundConn, chanID, clientID)
+		return fmt.Errorf("%s between channel %s and client %s", errNotFoundConn, channelID, clientID)
 	}
 
 	// Publish on SupeMQ Message broker
@@ -236,16 +240,25 @@ func (c client) publish(ctx context.Context, token string, m message) error {
 	msg := messaging.Message{
 		Publisher: clientID,
 		Protocol:  protocol,
-		Channel:   chanID,
+		Domain:    domainID,
+		Channel:   channelID,
 		Payload:   payload,
 		Subtopic:  m.NodeID,
 		Created:   time.Now().UnixNano(),
 	}
 
-	if err := c.publisher.Publish(ctx, msg.GetChannel(), &msg); err != nil {
+	if err := c.publisher.Publish(ctx, messaging.EncodeMessageTopic(&msg), &msg); err != nil {
 		return err
 	}
 
 	c.logger.Info(fmt.Sprintf("publish from server %s and node_id %s with value %v", m.ServerURI, m.NodeID, m.Data))
 	return nil
+}
+
+func decodeChannelValue(val string) (chanID, domainID string, err error) {
+	parts := strings.Split(val, ":")
+	if len(parts) != 2 {
+		return "", "", errMalformedChannelValue
+	}
+	return parts[0], parts[1], nil
 }

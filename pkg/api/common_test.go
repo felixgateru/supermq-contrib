@@ -322,7 +322,6 @@ func TestEncodeError(t *testing.T) {
 				message := body{}
 				jerr := json.Unmarshal(responseWriter.Body(), &message)
 				assert.NoError(t, jerr)
-
 			}
 		})
 	}
