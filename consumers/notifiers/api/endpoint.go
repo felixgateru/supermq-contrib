@@ -7,7 +7,6 @@ import (
 	"context"
 
 	notifiers "github.com/absmach/supermq-contrib/consumers/notifiers"
-	api "github.com/absmach/supermq/api/http"
 	apiutil "github.com/absmach/supermq/api/http/util"
 	"github.com/absmach/supermq/pkg/authn"
 	"github.com/absmach/supermq/pkg/errors"
@@ -21,7 +20,7 @@ func createSubscriptionEndpoint(svc notifiers.Service) endpoint.Endpoint {
 		if err := req.validate(); err != nil {
 			return createSubRes{}, errors.Wrap(apiutil.ErrValidation, err)
 		}
-		session, ok := ctx.Value(api.SessionKey).(authn.Session)
+		session, ok := ctx.Value(authn.SessionKey).(authn.Session)
 		if !ok {
 			return nil, svcerr.ErrAuthentication
 		}
@@ -47,7 +46,7 @@ func viewSubscriptionEndpint(svc notifiers.Service) endpoint.Endpoint {
 		if err := req.validate(); err != nil {
 			return viewSubRes{}, errors.Wrap(apiutil.ErrValidation, err)
 		}
-		session, ok := ctx.Value(api.SessionKey).(authn.Session)
+		session, ok := ctx.Value(authn.SessionKey).(authn.Session)
 		if !ok {
 			return nil, svcerr.ErrAuthentication
 		}
@@ -71,7 +70,7 @@ func listSubscriptionsEndpoint(svc notifiers.Service) endpoint.Endpoint {
 		if err := req.validate(); err != nil {
 			return listSubsRes{}, errors.Wrap(apiutil.ErrValidation, err)
 		}
-		session, ok := ctx.Value(api.SessionKey).(authn.Session)
+		session, ok := ctx.Value(authn.SessionKey).(authn.Session)
 		if !ok {
 			return nil, svcerr.ErrAuthentication
 		}
@@ -111,7 +110,7 @@ func deleteSubscriptionEndpint(svc notifiers.Service) endpoint.Endpoint {
 			return nil, errors.Wrap(apiutil.ErrValidation, err)
 		}
 
-		session, ok := ctx.Value(api.SessionKey).(authn.Session)
+		session, ok := ctx.Value(authn.SessionKey).(authn.Session)
 		if !ok {
 			return nil, svcerr.ErrAuthentication
 		}

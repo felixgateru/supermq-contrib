@@ -11,6 +11,7 @@ import (
 	"github.com/absmach/supermq"
 	grpcChannelsV1 "github.com/absmach/supermq/api/grpc/channels/v1"
 	grpcClientsV1 "github.com/absmach/supermq/api/grpc/clients/v1"
+	api "github.com/absmach/supermq/api/http"
 	apiutil "github.com/absmach/supermq/api/http/util"
 	smqauthn "github.com/absmach/supermq/pkg/authn"
 	"github.com/absmach/supermq/pkg/connections"
@@ -50,7 +51,7 @@ const (
 // MakeHandler returns a HTTP handler for API endpoints.
 func MakeHandler(svc readers.MessageRepository, authn smqauthn.Authentication, clients grpcClientsV1.ClientsServiceClient, channels grpcChannelsV1.ChannelsServiceClient, svcName, instanceID string) http.Handler {
 	opts := []kithttp.ServerOption{
-		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerErrorEncoder(api.EncodeError),
 	}
 
 	mux := chi.NewRouter()
@@ -196,47 +197,6 @@ func encodeResponse(_ context.Context, w http.ResponseWriter, response interface
 	return json.NewEncoder(w).Encode(response)
 }
 
-func encodeError(_ context.Context, err error, w http.ResponseWriter) {
-	var wrapper error
-	if errors.Contains(err, apiutil.ErrValidation) {
-		wrapper, err = errors.Unwrap(err)
-	}
-
-	switch {
-	case errors.Contains(err, nil):
-	case errors.Contains(err, apiutil.ErrInvalidQueryParams),
-		errors.Contains(err, svcerr.ErrMalformedEntity),
-		errors.Contains(err, apiutil.ErrMissingID),
-		errors.Contains(err, apiutil.ErrLimitSize),
-		errors.Contains(err, apiutil.ErrOffsetSize),
-		errors.Contains(err, apiutil.ErrInvalidComparator),
-		errors.Contains(err, apiutil.ErrInvalidAggregation),
-		errors.Contains(err, apiutil.ErrInvalidInterval),
-		errors.Contains(err, apiutil.ErrMissingFrom),
-		errors.Contains(err, apiutil.ErrMissingTo),
-		errors.Contains(err, apiutil.ErrMissingDomainID):
-		w.WriteHeader(http.StatusBadRequest)
-	case errors.Contains(err, svcerr.ErrAuthentication),
-		errors.Contains(err, svcerr.ErrAuthorization),
-		errors.Contains(err, apiutil.ErrBearerToken):
-		w.WriteHeader(http.StatusUnauthorized)
-	case errors.Contains(err, readers.ErrReadMessages):
-		w.WriteHeader(http.StatusInternalServerError)
-	default:
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-
-	if wrapper != nil {
-		err = errors.Wrap(wrapper, err)
-	}
-	if errorVal, ok := err.(errors.Error); ok {
-		w.Header().Set("Content-Type", contentType)
-		if err := json.NewEncoder(w).Encode(errorVal); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-	}
-}
-
 func authnAuthz(ctx context.Context, req listMessagesReq, authn smqauthn.Authentication, clients grpcClientsV1.ClientsServiceClient, channels grpcChannelsV1.ChannelsServiceClient) error {
 	clientID, clientType, err := authenticate(ctx, req, authn, clients)
 	if err != nil {
@@ -255,11 +215,14 @@ func authenticate(ctx context.Context, req listMessagesReq, authn smqauthn.Authe
 		if err != nil {
 			return "", "", err
 		}
+		if session.Role == smqauthn.AdminRole {
+			return session.UserID, policies.UserType, nil
+		}
 
-		return session.UserID, policies.UserType, nil
+		return policies.EncodeDomainUserID(req.domain, session.UserID), policies.UserType, nil
 	case req.key != "":
 		res, err := clients.Authenticate(ctx, &grpcClientsV1.AuthnReq{
-			ClientSecret: req.key,
+			Token: smqauthn.AuthPack(smqauthn.DomainAuth, req.domain, req.key),
 		})
 		if err != nil {
 			return "", "", err

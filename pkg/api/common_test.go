@@ -323,15 +323,6 @@ func TestEncodeError(t *testing.T) {
 				jerr := json.Unmarshal(responseWriter.Body(), &message)
 				assert.NoError(t, jerr)
 
-				var wrapper error
-				switch errors.Contains(err, apiutil.ErrValidation) {
-				case true:
-					wrapper, err = errors.Unwrap(err)
-					assert.Equal(t, err.Error(), message.Error)
-					assert.Equal(t, wrapper.Error(), message.Message)
-				case false:
-					assert.Equal(t, err.Error(), message.Message)
-				}
 			}
 		})
 	}

@@ -21,6 +21,7 @@ import (
 	"github.com/absmach/supermq-contrib/consumers/notifiers/tracing"
 	"github.com/absmach/supermq/consumers"
 	smqlog "github.com/absmach/supermq/logger"
+	smqauthn "github.com/absmach/supermq/pkg/authn"
 	"github.com/absmach/supermq/pkg/authn/authsvc"
 	"github.com/absmach/supermq/pkg/grpcclient"
 	jaegerclient "github.com/absmach/supermq/pkg/jaeger"
@@ -39,14 +40,12 @@ import (
 )
 
 const (
-	svcName           = "smtp-notifier"
-	envPrefixDB       = "SMQ_SMTP_NOTIFIER_DB_"
-	envPrefixHTTP     = "SMQ_SMTP_NOTIFIER_HTTP_"
-	envPrefixAuth     = "SMQ_AUTH_GRPC_"
-	envPrefixClients  = "SMQ_CLIENTS_AUTH_GRPC_"
-	envPrefixChannels = "SMQ_CHANNELS_GRPC_"
-	defDB             = "subscriptions"
-	defSvcHTTPPort    = "9015"
+	svcName        = "smpp-notifier"
+	envPrefixDB    = "SMQ_SMPP_NOTIFIER_DB_"
+	envPrefixHTTP  = "SMQ_SMPP_NOTIFIER_HTTP_"
+	envPrefixAuth  = "SMQ_AUTH_GRPC_"
+	defDB          = "subscriptions"
+	defSvcHTTPPort = "9015"
 )
 
 type config struct {
@@ -135,13 +134,6 @@ func main() {
 	defer pubSub.Close()
 	pubSub = brokerstracing.NewPubSub(httpServerConfig, tracer, pubSub)
 
-	clientsClientCfg := grpcclient.Config{}
-	if err := env.ParseWithOptions(&clientsClientCfg, env.Options{Prefix: envPrefixClients}); err != nil {
-		logger.Error(fmt.Sprintf("failed to load clients gRPC client configuration : %s", err))
-		exitCode = 1
-		return
-	}
-
 	authnCfg := grpcclient.Config{}
 	if err := env.ParseWithOptions(&authnCfg, env.Options{Prefix: envPrefixAuth}); err != nil {
 		logger.Error(fmt.Sprintf("failed to load auth gRPC client configuration : %s", err))
@@ -157,6 +149,7 @@ func main() {
 	}
 	defer authnHandler.Close()
 	logger.Info("authn successfully connected to auth gRPC server " + authnHandler.Secure())
+	authnMiddleware := smqauthn.NewAuthNMiddleware(authn)
 
 	svc := newService(db, tracer, cfg, smppConfig, logger)
 
@@ -166,7 +159,7 @@ func main() {
 		return
 	}
 
-	hs := httpserver.NewServer(ctx, cancel, svcName, httpServerConfig, api.MakeHandler(svc, authn, logger, cfg.InstanceID), logger)
+	hs := httpserver.NewServer(ctx, cancel, svcName, httpServerConfig, api.MakeHandler(svc, authnMiddleware, logger, cfg.InstanceID), logger)
 
 	if cfg.SendTelemetry {
 		chc := chclient.New(svcName, supermq.Version, logger, cancel)

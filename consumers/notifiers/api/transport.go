@@ -14,7 +14,7 @@ import (
 	"github.com/absmach/supermq-contrib/consumers/notifiers"
 	api "github.com/absmach/supermq/api/http"
 	apiutil "github.com/absmach/supermq/api/http/util"
-	"github.com/absmach/supermq/pkg/authn"
+	smqauthn "github.com/absmach/supermq/pkg/authn"
 	"github.com/absmach/supermq/pkg/errors"
 	"github.com/go-chi/chi/v5"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -33,15 +33,16 @@ const (
 )
 
 // MakeHandler returns a HTTP handler for API endpoints.
-func MakeHandler(svc notifiers.Service, authn authn.Authentication, logger *slog.Logger, instanceID string) http.Handler {
+func MakeHandler(svc notifiers.Service, authn smqauthn.AuthNMiddleware, logger *slog.Logger, instanceID string) http.Handler {
 	opts := []kithttp.ServerOption{
 		kithttp.ServerErrorEncoder(apiutil.LoggingErrorEncoder(logger, api.EncodeError)),
 	}
+	authn = authn.WithOptions(smqauthn.WithDomainCheck(false))
 
 	mux := chi.NewRouter()
 
 	mux.Route("/subscriptions", func(r chi.Router) {
-		r.Use(api.AuthenticateMiddleware(authn, false))
+		r.Use(authn.Middleware())
 		r.Post("/", otelhttp.NewHandler(kithttp.NewServer(
 			createSubscriptionEndpoint(svc),
 			decodeCreate,
