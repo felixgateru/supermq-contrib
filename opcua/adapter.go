@@ -134,12 +134,12 @@ func (as *adapterService) Connect(ctx context.Context, domainID string, channelI
 				return err
 			}
 
-			go func(cfg Config) {
-				if err := as.subscriber.Subscribe(context.Background(), cfg); err != nil {
+			go func(ctx context.Context, cfg Config) {
+				subCtx := context.WithoutCancel(ctx)
+				if err := as.subscriber.Subscribe(subCtx, cfg); err != nil {
 					as.logger.Warn("subscription failed", slog.Any("error", err))
 				}
-			}(cfg)
-
+			}(ctx, cfg)
 			// Store subscription details
 			if err := db.Save(serverURI, nodeID); err != nil {
 				return err

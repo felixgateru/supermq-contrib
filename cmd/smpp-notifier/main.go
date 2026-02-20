@@ -1,7 +1,7 @@
 // Copyright (c) Abstract Machines
 // SPDX-License-Identifier: Apache-2.0
 
-// Package main contains smtp-notifier main function to start the smtp-notifier service.
+// Package main contains smpp-notifier main function to start the smpp-notifier service.
 package main
 
 import (
@@ -49,13 +49,13 @@ const (
 )
 
 type config struct {
-	LogLevel      string  `env:"SMQ_SMTP_NOTIFIER_LOG_LEVEL"    envDefault:"info"`
-	ConfigPath    string  `env:"SMQ_SMTP_NOTIFIER_CONFIG_PATH"  envDefault:"/config.toml"`
-	From          string  `env:"SMQ_SMTP_NOTIFIER_FROM_ADDR"    envDefault:""`
+	LogLevel      string  `env:"SMQ_SMPP_NOTIFIER_LOG_LEVEL"    envDefault:"info"`
+	ConfigPath    string  `env:"SMQ_SMPP_NOTIFIER_CONFIG_PATH"  envDefault:"/config.toml"`
+	From          string  `env:"SMQ_SMPP_NOTIFIER_FROM_ADDR"    envDefault:""`
 	BrokerURL     string  `env:"SMQ_MESSAGE_BROKER_URL"         envDefault:"nats://localhost:4222"`
 	JaegerURL     url.URL `env:"SMQ_JAEGER_URL"                 envDefault:"http://jaeger:14268/api/traces"`
 	SendTelemetry bool    `env:"SMQ_SEND_TELEMETRY"             envDefault:"true"`
-	InstanceID    string  `env:"SMQ_SMTP_NOTIFIER_INSTANCE_ID"  envDefault:""`
+	InstanceID    string  `env:"SMQ_SMPP_NOTIFIER_INSTANCE_ID"  envDefault:""`
 	TraceRatio    float64 `env:"SMQ_JAEGER_TRACE_RATIO"         envDefault:"1.0"`
 }
 
@@ -175,7 +175,7 @@ func main() {
 	})
 
 	if err := g.Wait(); err != nil {
-		logger.Error(fmt.Sprintf("SMTP notifier service terminated: %s", err))
+		logger.Error(fmt.Sprintf("SMPP notifier service terminated: %s", err))
 	}
 }
 
