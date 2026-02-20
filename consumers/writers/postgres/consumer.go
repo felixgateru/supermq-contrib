@@ -6,6 +6,7 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 
 	"github.com/absmach/supermq/consumers"
@@ -81,8 +82,8 @@ func (pr postgresRepo) saveSenml(ctx context.Context, messages interface{}) (err
 		}
 		m := senmlMessage{Message: msg, ID: id.String()}
 		if _, err := tx.NamedExec(q, m); err != nil {
-			pgErr, ok := err.(*pgconn.PgError)
-			if ok {
+			var pgErr *pgconn.PgError
+			if stderrors.As(err, &pgErr) {
 				if pgErr.Code == pgerrcode.InvalidTextRepresentation {
 					return errors.Wrap(errSaveMessage, errInvalidMessage)
 				}
@@ -137,8 +138,8 @@ func (pr postgresRepo) insertJSON(ctx context.Context, msgs mgjson.Messages) err
 		}
 
 		if _, err = tx.NamedExec(q, dbmsg); err != nil {
-			pgErr, ok := err.(*pgconn.PgError)
-			if ok {
+			var pgErr *pgconn.PgError
+			if stderrors.As(err, &pgErr) {
 				switch pgErr.Code {
 				case pgerrcode.InvalidTextRepresentation:
 					return errors.Wrap(errSaveMessage, errInvalidMessage)

@@ -6,6 +6,7 @@ package timescale
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 
 	"github.com/absmach/supermq/consumers"
@@ -76,8 +77,8 @@ func (tr timescaleRepo) saveSenml(ctx context.Context, messages interface{}) (er
 	for _, msg := range msgs {
 		m := senmlMessage{Message: msg}
 		if _, err := tx.NamedExec(q, m); err != nil {
-			pgErr, ok := err.(*pgconn.PgError)
-			if ok {
+			var pgErr *pgconn.PgError
+			if stderrors.As(err, &pgErr) {
 				if pgErr.Code == pgerrcode.InvalidTextRepresentation {
 					return errors.Wrap(errSaveMessage, errInvalidMessage)
 				}
@@ -131,8 +132,8 @@ func (tr timescaleRepo) insertJSON(ctx context.Context, msgs mgjson.Messages) er
 			return errors.Wrap(errSaveMessage, err)
 		}
 		if _, err = tx.NamedExec(q, dbmsg); err != nil {
-			pgErr, ok := err.(*pgconn.PgError)
-			if ok {
+			var pgErr *pgconn.PgError
+			if stderrors.As(err, &pgErr) {
 				switch pgErr.Code {
 				case pgerrcode.InvalidTextRepresentation:
 					return errors.Wrap(errSaveMessage, errInvalidMessage)
